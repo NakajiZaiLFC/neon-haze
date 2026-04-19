@@ -752,11 +752,30 @@ else
     [ -n "$opus_remain" ] && L5b+=$(printf "${DIM}(%s)${RESET}" "$opus_remain")
   fi
 
-  # L6: diff stats
-  L6=""
-  if [ "$diff_add" -gt 0 ] || [ "$diff_del" -gt 0 ]; then
-    L6=$(printf "${GREEN}+%d${RESET} ${RED}-%d${RESET}" "$diff_add" "$diff_del")
+  # L6: diff stats + today's commits (GitHub grass)
+  commits_today=0
+  if [ -n "$cwd" ] && [ -n "$branch" ]; then
+    commits_today=$(git -C "$cwd" log --oneline --since="06:00" 2>/dev/null | wc -l | tr -d ' ')
   fi
+
+  L6=""
+  l6_parts=""
+  if [ "$diff_add" -gt 0 ] || [ "$diff_del" -gt 0 ]; then
+    l6_parts=$(printf "${GREEN}+%d${RESET} ${RED}-%d${RESET}" "$diff_add" "$diff_del")
+  fi
+  if [ "$commits_today" -gt 0 ] 2>/dev/null; then
+    grass_icon=""
+    if [ "$commits_today" -ge 8 ]; then
+      grass_icon=$(printf "\033[38;5;34m■■■${RESET}")
+    elif [ "$commits_today" -ge 4 ]; then
+      grass_icon=$(printf "\033[38;5;40m■■${RESET}")
+    elif [ "$commits_today" -ge 1 ]; then
+      grass_icon=$(printf "\033[38;5;118m■${RESET}")
+    fi
+    [ -n "$l6_parts" ] && l6_parts+=" "
+    l6_parts+=$(printf "%s ${DIM}%dc${RESET}" "$grass_icon" "$commits_today")
+  fi
+  L6="$l6_parts"
 
   # Build pomo inner string for width calculation
   _pomo_inner=""
