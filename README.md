@@ -1,12 +1,12 @@
-# StatusDock
+# Neon Haze
 
 A multi-panel, themed HUD status dock for Claude Code and terminal applications.
 
-> **Status Dock** — More than a status line. A docked, multi-panel heads-up display with live data, box-drawing frames, and switchable cyberpunk themes.
+> **Neon Haze** — More than a status line. A docked, multi-panel heads-up display with live data, box-drawing frames, and switchable cyberpunk themes.
 
 ## What is this?
 
-StatusDock turns your Claude Code status line into a cyberpunk HUD with multiple information panels:
+Neon Haze turns your Claude Code status line into a cyberpunk HUD with multiple information panels:
 
 ```
 ╔═════════════════════════╗   ╔════════════════════════════════════╗
@@ -47,7 +47,7 @@ Switch themes:
 
 ### Claude Code
 
-1. Copy `statusdock.sh` to `~/.claude/statusline-command.sh`
+1. Copy `neon-haze.sh` to `~/.claude/statusline-command.sh`
 2. Copy `themes/` to `~/.claude/themes/`
 3. Copy `commands/` to `~/.claude/commands/`
 4. Add to `~/.claude/settings.json`:
@@ -92,7 +92,7 @@ Create `~/.claude/themes/mytheme.sh`:
 
 ```bash
 #!/bin/bash
-# Status Dock Theme: My Theme
+# Neon Haze Theme: My Theme
 
 T_FRAME="\033[38;5;46m"        # box frame color
 T_PROJECT="\033[38;5;51m"      # project name
@@ -138,8 +138,8 @@ Then: `/theme mytheme`
 ## Architecture
 
 ```
-statusdock/
-├── statusdock.sh      # Main status dock script
+neon-haze/
+├── neon-haze.sh      # Main status dock script
 ├── themes/            # Theme files
 │   ├── neon.sh
 │   ├── cyberpunk.sh
