@@ -769,16 +769,22 @@ else
   GITHUB_CACHE="${CACHE_DIR}/github-pushes"
   GITHUB_TTL=300
   commits_today=0
+  _fetch_gh_pushes() {
+    local today_utc
+    today_utc=$(date -u +%Y-%m-%d)
+    gh api "/users/NakajiZaiLFC/events" --jq "[.[] | select(.type==\"PushEvent\" and (.created_at | startswith(\"$today_utc\")))] | length" > "$GITHUB_CACHE" 2>/dev/null
+  }
   if [ -f "$GITHUB_CACHE" ]; then
     gh_cache_age=$(( $(date +%s) - $(_file_mtime "$GITHUB_CACHE") ))
     if [ "$gh_cache_age" -le "$GITHUB_TTL" ]; then
       commits_today=$(cat "$GITHUB_CACHE" 2>/dev/null || echo 0)
     else
-      (today_utc=$(date -u +%Y-%m-%d); gh api "/users/NakajiZaiLFC/events" --jq "[.[] | select(.type==\"PushEvent\" and (.created_at | startswith(\"$today_utc\")))] | length" > "$GITHUB_CACHE" 2>/dev/null) &
+      _fetch_gh_pushes
       commits_today=$(cat "$GITHUB_CACHE" 2>/dev/null || echo 0)
     fi
   else
-    (today_utc=$(date -u +%Y-%m-%d); gh api "/users/NakajiZaiLFC/events" --jq "[.[] | select(.type==\"PushEvent\" and (.created_at | startswith(\"$today_utc\")))] | length" > "$GITHUB_CACHE" 2>/dev/null) &
+    _fetch_gh_pushes
+    commits_today=$(cat "$GITHUB_CACHE" 2>/dev/null || echo 0)
   fi
 
   L6=""
