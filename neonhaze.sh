@@ -763,17 +763,20 @@ else
   if [ "$diff_add" -gt 0 ] || [ "$diff_del" -gt 0 ]; then
     l6_parts=$(printf "${GREEN}+%d${RESET} ${RED}-%d${RESET}" "$diff_add" "$diff_del")
   fi
-  if [ "$commits_today" -gt 0 ] 2>/dev/null; then
-    grass_icon=""
-    if [ "$commits_today" -ge 8 ]; then
-      grass_icon=$(printf "\033[38;5;34m■■■${RESET}")
+  if [ "$commits_today" -ge 0 ] 2>/dev/null; then
+    if [ "$commits_today" -ge 10 ]; then
+      grass_color="\033[38;5;119m"
+    elif [ "$commits_today" -ge 7 ]; then
+      grass_color="\033[38;5;77m"
     elif [ "$commits_today" -ge 4 ]; then
-      grass_icon=$(printf "\033[38;5;40m■■${RESET}")
+      grass_color="\033[38;5;71m"
     elif [ "$commits_today" -ge 1 ]; then
-      grass_icon=$(printf "\033[38;5;118m■${RESET}")
+      grass_color="\033[38;5;22m"
+    else
+      grass_color="\033[38;5;238m"
     fi
     [ -n "$l6_parts" ] && l6_parts+=" "
-    l6_parts+=$(printf "%s ${DIM}%dc${RESET}" "$grass_icon" "$commits_today")
+    l6_parts+=$(printf "${grass_color}■${RESET} ${DIM}%dc${RESET}" "$commits_today")
   fi
   L6="$l6_parts"
 
@@ -831,9 +834,9 @@ for line in sys.stdin:
     POMO_W=$W_BOX
     [ -n "$WPOMO" ] && [ "$WPOMO" -gt "$POMO_W" ] 2>/dev/null && POMO_W=$WPOMO
 
-    [ -n "$L3" ] && printf "%s%s%s\n" "$(lbox_line "$lc" "$L3" "$max_lw" "$W3")" "$GAP" "$(pb_top "$pomo_box_color" "$POMO_W")"
-    [ -n "$L4" ] && printf "%s%s%s\n" "$(lbox_line "$lc" "$L4" "$max_lw" "$W4")" "$GAP" "$(pb_line "$pomo_box_color" "$pomo_time_str" "$pomo_tomatoes" "$pomo_msg" "$POMO_W" "$WPOMO")"
-    [ -n "$L5" ] && printf "%s%s%s\n" "$(lbox_line "$lc" "$L5" "$max_lw" "$W5")" "$GAP" "$(pb_bot "$pomo_box_color" "$POMO_W")"
+    printf "%s%s%s\n" "$(lbox_line "$lc" "${L3}" "$max_lw" "${W3:-0}")" "$GAP" "$(pb_top "$pomo_box_color" "$POMO_W")"
+    printf "%s%s%s\n" "$(lbox_line "$lc" "${L4}" "$max_lw" "${W4:-0}")" "$GAP" "$(pb_line "$pomo_box_color" "$pomo_time_str" "$pomo_tomatoes" "$pomo_msg" "$POMO_W" "$WPOMO")"
+    printf "%s%s%s\n" "$(lbox_line "$lc" "${L5}" "$max_lw" "${W5:-0}")" "$GAP" "$(pb_bot "$pomo_box_color" "$POMO_W")"
     [ -n "$L5b" ] && printf "%s\n" "$(lbox_line "$lc" "$L5b" "$max_lw" "$W5b")"
   else
     [ -n "$L3" ] && printf "%s\n" "$(lbox_line "$lc" "$L3" "$max_lw" "$W3")"
