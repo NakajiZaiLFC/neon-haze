@@ -147,11 +147,13 @@ neon-haze/
 
 ## Roadmap
 
+- [ ] Animated ASCII art per theme (NERV logo, Seleção scales, Tachikoma walking...)
 - [ ] YAML/TOML declarative block definition DSL
 - [ ] Plugin system for custom data sources
-- [ ] Rust rewrite for <5ms startup
+- [ ] Rust rewrite for <5ms startup + animation support
 - [ ] Template gallery website
 - [ ] Community theme submissions
+- [ ] Unicode width engine (solve emoji/CJK alignment issues)
 
 ## License
 
