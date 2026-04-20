@@ -752,10 +752,20 @@ else
     [ -n "$opus_remain" ] && L5b+=$(printf "${DIM}(%s)${RESET}" "$opus_remain")
   fi
 
-  # L6: diff stats + today's commits (GitHub grass)
+  # L6: diff stats + today's GitHub push count (grass)
+  GITHUB_CACHE="${CACHE_DIR}/github-pushes"
+  GITHUB_TTL=300
   commits_today=0
-  if [ -n "$cwd" ] && [ -n "$branch" ]; then
-    commits_today=$(git -C "$cwd" log --oneline --since="06:00" 2>/dev/null | wc -l | tr -d ' ')
+  if [ -f "$GITHUB_CACHE" ]; then
+    gh_cache_age=$(( $(date +%s) - $(_file_mtime "$GITHUB_CACHE") ))
+    if [ "$gh_cache_age" -le "$GITHUB_TTL" ]; then
+      commits_today=$(cat "$GITHUB_CACHE" 2>/dev/null || echo 0)
+    else
+      (today_utc=$(date -u +%Y-%m-%d); gh api "/users/NakajiZaiLFC/events" --jq "[.[] | select(.type==\"PushEvent\" and (.created_at | startswith(\"$today_utc\")))] | length" > "$GITHUB_CACHE" 2>/dev/null) &
+      commits_today=$(cat "$GITHUB_CACHE" 2>/dev/null || echo 0)
+    fi
+  else
+    (today_utc=$(date -u +%Y-%m-%d); gh api "/users/NakajiZaiLFC/events" --jq "[.[] | select(.type==\"PushEvent\" and (.created_at | startswith(\"$today_utc\")))] | length" > "$GITHUB_CACHE" 2>/dev/null) &
   fi
 
   L6=""

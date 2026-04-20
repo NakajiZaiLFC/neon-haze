@@ -4,7 +4,7 @@ A multi-panel, themed HUD status dock for Claude Code and terminal applications.
 
 > **Neon Haze** — More than a status line. A docked, multi-panel heads-up display with live data, box-drawing frames, and switchable cyberpunk themes.
 
-https://github.com/NakajiZaiLFC/neon-haze/blob/main/neonhaze-demo.gif
+![Neon Haze Demo](neonhaze-demo.gif)
 
 ## What is this?
 
