@@ -8,8 +8,10 @@ T_BRANCH="\033[38;5;141m"      # git branch - neon purple
 T_BADGE="\033[38;5;197m"       # [N] badge - neon pink
 T_DIRTY="\033[38;5;226m"       # dirty marker
 T_SENSEI="\033[38;5;46m"       # sensei:ON - neon green
-T_COST="\033[38;5;60m"         # cost/dim text - dusk purple
-T_MODEL="\033[38;5;60m"        # model name
+T_COST="\033[38;5;82m"         # cost - neon lime
+T_MODEL="\033[38;5;75m"        # model name - sky blue
+T_LABEL="\033[38;5;37m"        # ctx/5h/7d labels - teal
+T_PERCENT="\033[38;5;46m"      # percentage text - neon green
 
 T_BAR_GOOD="\033[38;5;46m"     # bar <50% - neon green
 T_BAR_GOOD_DIM="\033[38;5;28m"

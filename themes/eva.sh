@@ -8,8 +8,10 @@ T_BRANCH="\033[38;5;135m"       # light purple
 T_BADGE="\033[38;5;208m"        # warning orange
 T_DIRTY="\033[38;5;208m"        # orange
 T_SENSEI="\033[38;5;46m"        # EVA green
-T_COST="\033[38;5;97m"          # muted purple
-T_MODEL="\033[38;5;97m"
+T_COST="\033[38;5;208m"         # NERV orange (UI)
+T_MODEL="\033[38;5;208m"        # orange (MAGI display)
+T_LABEL="\033[38;5;135m"        # light purple
+T_PERCENT="\033[38;5;128m"      # EVA purple
 
 T_BAR_GOOD="\033[38;5;46m"      # EVA green
 T_BAR_GOOD_DIM="\033[38;5;22m"

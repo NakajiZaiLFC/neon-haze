@@ -8,8 +8,10 @@ T_BRANCH="\033[38;5;203m"       # coral red
 T_BADGE="\033[38;5;226m"        # yellow warning
 T_DIRTY="\033[38;5;208m"        # orange
 T_SENSEI="\033[38;5;226m"       # yellow
-T_COST="\033[38;5;95m"          # dark mauve
-T_MODEL="\033[38;5;95m"
+T_COST="\033[38;5;167m"         # muted red
+T_MODEL="\033[38;5;75m"         # blue (Tetsuo psychic)
+T_LABEL="\033[38;5;167m"        # muted red
+T_PERCENT="\033[38;5;196m"      # Kaneda red
 
 T_BAR_GOOD="\033[38;5;203m"     # coral
 T_BAR_GOOD_DIM="\033[38;5;88m"

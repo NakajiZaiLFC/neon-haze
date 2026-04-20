@@ -153,7 +153,7 @@ for line in lines:
 }
 
 # --- Left box frame (HUD style) ---
-_BOX_COLOR="${T_FRAME:-\033[38;5;46m}"
+_BOX_COLOR="\033[38;5;46m"
 
 lbox_line() {
   local color="$1" content="$2" max_w="$3" precomp_w="$4"
@@ -600,6 +600,7 @@ GREEN="${T_SENSEI:-\033[38;5;46m}"
 DIM="${T_COST:-\033[38;5;60m}"
 LABEL="${T_LABEL:-\033[38;5;37m}"
 MODEL_COLOR="${T_MODEL:-\033[38;5;75m}"
+_BOX_COLOR="${T_FRAME:-\033[38;5;46m}"
 
 _color_for_val() {
   local val=${1%.*}
