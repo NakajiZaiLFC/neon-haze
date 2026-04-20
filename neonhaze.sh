@@ -598,6 +598,8 @@ RED="${T_BADGE:-\033[38;5;197m}"
 YELLOW="${T_DIRTY:-\033[38;5;226m}"
 GREEN="${T_SENSEI:-\033[38;5;46m}"
 DIM="${T_COST:-\033[38;5;60m}"
+LABEL="${T_LABEL:-\033[38;5;37m}"
+MODEL_COLOR="${T_MODEL:-\033[38;5;75m}"
 
 _color_for_val() {
   local val=${1%.*}
@@ -707,8 +709,18 @@ else
   # L2: model cost [sensei:ON]
   display_model=$(echo "$model" | sed 's/ *([^)]*)//')
   L2=""
-  [ -n "$display_model" ] && L2+="$display_model"
-  L2+=$(printf " \$%.2f" "$cost")
+  if [ -n "$display_model" ]; then
+    case "$display_model" in
+      *Opus*4.7*) _mc="\033[38;5;135m" ;;  # purple
+      *Opus*4.6*) _mc="\033[38;5;75m"  ;;  # blue
+      *Opus*)     _mc="\033[38;5;141m" ;;  # light purple
+      *Sonnet*)   _mc="\033[38;5;214m" ;;  # amber
+      *Haiku*)    _mc="\033[38;5;114m" ;;  # green
+      *)          _mc="${MODEL_COLOR}"  ;;
+    esac
+    L2+=$(printf "${_mc}%s${RESET}" "$display_model")
+  fi
+  L2+=$(printf " ${DIM}\$%.2f${RESET}" "$cost")
   [ -n "$sensei_active" ] && L2+=$(printf " ${GREEN}[sensei:ON]${RESET}")
 
   # L3: ctx bar
@@ -716,7 +728,7 @@ else
   if [ -n "$ctx_pct" ]; then
     _color_for_val "$ctx_pct"
     ctx_bar=$(render_bar "$ctx_pct" "$_uc" "$_uc_dim")
-    L3=$(printf "ctx:%b${_uc}%s%%${RESET}" "$ctx_bar" "$ctx_pct")
+    L3=$(printf "${LABEL}ctx${RESET}:%b${_uc}%s%%${RESET}" "$ctx_bar" "$ctx_pct")
   fi
 
   # L4: 5h bar
@@ -725,9 +737,9 @@ else
     five_int=${five_hour%.*}
     _color_for_val "$five_hour"
     five_bar=$(render_bar "$five_int" "$_uc" "$_uc_dim")
-    L4=$(printf "5h :%b${_uc}%s%%${RESET}" "$five_bar" "$five_int")
+    L4=$(printf "${LABEL}5h${RESET} :%b${_uc}%s%%${RESET}" "$five_bar" "$five_int")
     five_remain=$(remaining_time "$five_hour_reset")
-    [ -n "$five_remain" ] && L4+=$(printf "${DIM}(%s)${RESET}" "$five_remain")
+    [ -n "$five_remain" ] && L4+=$(printf "${_uc_dim}(%s)${RESET}" "$five_remain")
   fi
 
   # L5: 7d bar
@@ -736,9 +748,9 @@ else
     seven_int=${seven_day%.*}
     _color_for_val "$seven_day"
     seven_bar=$(render_bar "$seven_int" "$_uc" "$_uc_dim")
-    L5=$(printf "7d :%b${_uc}%s%%${RESET}" "$seven_bar" "$seven_int")
+    L5=$(printf "${LABEL}7d${RESET} :%b${_uc}%s%%${RESET}" "$seven_bar" "$seven_int")
     seven_remain=$(remaining_time "$seven_day_reset")
-    [ -n "$seven_remain" ] && L5+=$(printf "${DIM}(%s)${RESET}" "$seven_remain")
+    [ -n "$seven_remain" ] && L5+=$(printf "${_uc_dim}(%s)${RESET}" "$seven_remain")
   fi
 
   # L5b: op bar (optional)
@@ -749,7 +761,7 @@ else
     opus_bar=$(render_bar "$opus_int" "$_uc" "$_uc_dim")
     L5b=$(printf "op :%b${_uc}%s%%${RESET}" "$opus_bar" "$opus_int")
     opus_remain=$(remaining_time "$seven_day_opus_reset")
-    [ -n "$opus_remain" ] && L5b+=$(printf "${DIM}(%s)${RESET}" "$opus_remain")
+    [ -n "$opus_remain" ] && L5b+=$(printf "${_uc_dim}(%s)${RESET}" "$opus_remain")
   fi
 
   # L6: diff stats + today's GitHub push count (grass)
@@ -786,7 +798,7 @@ else
       grass_color="\033[38;5;238m"
     fi
     [ -n "$l6_parts" ] && l6_parts+=" "
-    l6_parts+=$(printf "${grass_color}■${RESET} ${DIM}%dc${RESET}" "$commits_today")
+    l6_parts+=$(printf "${grass_color}■ %dc${RESET}" "$commits_today")
   fi
   L6="$l6_parts"
 
