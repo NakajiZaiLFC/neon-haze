@@ -946,21 +946,23 @@ for line in sys.stdin:
   fi
 
   # TUI mode: signal async_inject daemon to inject inline image
-  # Rate limited: write signal at most once per 10 seconds per TTY
+  # Only write signal when layout changes (rows/cols/position), not every second
   if [ "$_has_sprite" -eq 1 ] && [ "$_use_inject" -eq 1 ]; then
     _sig_tty=$(ps -o tty= -p $PPID 2>/dev/null | tr -d ' ')
     if [ -n "$_sig_tty" ] && [ "$_sig_tty" != "??" ]; then
-      _sig_stamp="$_SIG_DIR/.stamp-${_sig_tty//\//_}"
-      _sig_now=$(date +%s)
-      _sig_last=0
-      [ -f "$_sig_stamp" ] && _sig_last=$(cat "$_sig_stamp" 2>/dev/null)
-      if [ $((_sig_now - _sig_last)) -ge 3 ]; then
-        _img_col=$((max_lw + 4 + 3 + _rw + 5))
-        _img_rows=$_total_lines
+      _img_col=$((max_lw + 4 + 3 + _rw + 5))
+      _img_rows=$_total_lines
+      _sig_file="$_SIG_DIR/req-${_sig_tty//\//_}.json"
+      _sig_key="${_img_rows}:${_img_col}"
+      _sig_prev=""
+      [ -f "$_SIG_DIR/.layout-${_sig_tty//\//_}" ] && _sig_prev=$(cat "$_SIG_DIR/.layout-${_sig_tty//\//_}" 2>/dev/null)
+      _sig_age=0
+      [ -f "$_sig_file" ] && _sig_age=$(( $(date +%s) - $(_file_mtime "$_sig_file") ))
+      if [ "$_sig_key" != "$_sig_prev" ] || [ "$_sig_age" -ge 30 ] || [ ! -f "$_sig_file" ]; then
         printf '{"tty":"/dev/%s","image_path":"%s","rows_up":%d,"col_right":%d,"ts":%d}\n' \
-          "$_sig_tty" "$_SPRITE_PNG" "$_img_rows" "$_img_col" "$_sig_now" \
-          > "$_SIG_DIR/req-${_sig_tty//\//_}.json" 2>/dev/null
-        echo "$_sig_now" > "$_sig_stamp" 2>/dev/null
+          "$_sig_tty" "$_SPRITE_PNG" "$_img_rows" "$_img_col" "$(date +%s)" \
+          > "$_sig_file" 2>/dev/null
+        echo "$_sig_key" > "$_SIG_DIR/.layout-${_sig_tty//\//_}" 2>/dev/null
       fi
     fi
   fi
