@@ -20,13 +20,18 @@ Patterns:
   9.  CSI EL (clear line)
   10. BSU + full sequence + ESU (static)
   11. Current full sequence, no BSU (static control)
-  --- dynamic rotation ---
+  --- dynamic full rotation ---
   12. BSU + rotating image + ESU @ 1Hz (5°/frame)
   13. BSU + rotating image + ESU @ 2Hz (5°/frame)
   14. BSU + rotating image + ESU @ 5Hz (5°/frame)
   15. Rotating image WITHOUT BSU @ 1Hz (flicker control)
   16. BSU + rotating image + ESU @ 1Hz (15°/frame, fast spin)
   17. BSU + rotating image + ESU @ 10Hz (5°/frame, stress test)
+  --- split rotation (outer ring only, inner static) ---
+  18. BSU + SPLIT 1°/f + ESU @ 1Hz (slow natural)
+  19. BSU + SPLIT 2°/f + ESU @ 1Hz
+  20. BSU + SPLIT 5°/f + ESU @ 1Hz
+  21. BSU + SPLIT 1°/f + ESU @ 2Hz (smooth)
 
 Usage:
   python3 bsu_experiment.py [pattern_number]  # run single pattern
@@ -91,6 +96,24 @@ def rotate_image_b64(path: str, angle: float) -> str:
     return base64.b64encode(buf.getvalue()).decode()
 
 
+try:
+    from split_rotate import get_rotated_b64 as _split_rotate_b64
+    HAS_SPLIT = True
+except ImportError:
+    try:
+        sys.path.insert(0, os.path.dirname(__file__))
+        from split_rotate import get_rotated_b64 as _split_rotate_b64
+        HAS_SPLIT = True
+    except ImportError:
+        HAS_SPLIT = False
+
+
+def split_rotate_b64(path: str, angle: float) -> str:
+    if HAS_SPLIT:
+        return _split_rotate_b64(path, angle)
+    return rotate_image_b64(path, angle)
+
+
 def build_osc_image(b64: str, w="auto", h="8", extra="") -> bytes:
     header = f"\x1b]1337;File=inline=1;width={w};height={h};preserveAspectRatio=1"
     if extra:
@@ -112,11 +135,14 @@ def build_patterns(target_row: int, target_col: int) -> dict[int, PatternDef]:
 
     full_seq = DECSC + cup + build_osc_image(img_sprite) + DECRC
 
-    def make_rotate_gen(deg_per_frame: float, use_bsu: bool):
+    def make_rotate_gen(deg_per_frame: float, use_bsu: bool, split: bool = False):
         """Return a generator function that builds rotated inject bytes per frame."""
         def gen(frame_idx: int) -> bytes:
             angle = (frame_idx * deg_per_frame) % 360
-            rotated_b64 = rotate_image_b64(SPRITE_PNG, angle)
+            if split:
+                rotated_b64 = split_rotate_b64(SPRITE_PNG, angle)
+            else:
+                rotated_b64 = rotate_image_b64(SPRITE_PNG, angle)
             seq = DECSC + cup + build_osc_image(rotated_b64) + DECRC
             if use_bsu:
                 return BSU + seq + ESU
@@ -143,6 +169,11 @@ def build_patterns(target_row: int, target_col: int) -> dict[int, PatternDef]:
         15: ("rotate 5°/f NO BSU @ 1Hz (flicker ctrl)", 1.0, make_rotate_gen(5.0, False)),
         16: ("BSU + rotate 15°/f + ESU @ 1Hz (fast)", 1.0, make_rotate_gen(15.0, True)),
         17: ("BSU + rotate 5°/f + ESU @ 10Hz (stress)", 10.0, make_rotate_gen(5.0, True)),
+        # --- split rotation (outer ring only, inner static) ---
+        18: ("BSU + SPLIT 1°/f + ESU @ 1Hz (slow)", 1.0, make_rotate_gen(1.0, True, split=True)),
+        19: ("BSU + SPLIT 2°/f + ESU @ 1Hz", 1.0, make_rotate_gen(2.0, True, split=True)),
+        20: ("BSU + SPLIT 5°/f + ESU @ 1Hz", 1.0, make_rotate_gen(5.0, True, split=True)),
+        21: ("BSU + SPLIT 1°/f + ESU @ 2Hz (smooth)", 2.0, make_rotate_gen(1.0, True, split=True)),
     }
     return patterns
 
@@ -306,7 +337,7 @@ async def main(connection: iterm2.Connection):
             print(f"Unknown argument: {arg}", file=sys.stderr)
             return
         if num not in patterns:
-            print(f"Pattern {num} not found (valid: 1-17)", file=sys.stderr)
+            print(f"Pattern {num} not found (valid: 1-21)", file=sys.stderr)
             return
         await run_pattern(session, num, patterns[num], PATTERN_DURATION)
 
