@@ -70,9 +70,13 @@ def split_layers(img: Image.Image, inner_ratio: float = INNER_RATIO):
     # Feathered inner mask: blur the edge for smooth blending
     inner_mask_soft = inner_mask_hard.filter(ImageFilter.GaussianBlur(FEATHER_PX))
 
-    # Inner layer: original pixels inside inner circle (soft edge)
+    # Inner layer: gold background + original pixels (no black bleed)
+    gold_bg = Image.new("RGBA", (w, h), (200, 160, 80, 255))
     inner = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    inner.paste(img, mask=inner_mask_soft)
+    inner.paste(gold_bg, mask=inner_mask_soft)
+    inner_with_img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    inner_with_img.paste(img, mask=inner_mask_soft)
+    inner = Image.alpha_composite(inner, inner_with_img)
 
     # Outer layer: invert the soft mask to get the ring
     # outer_alpha = outer_full_alpha * (1 - inner_soft_alpha)
