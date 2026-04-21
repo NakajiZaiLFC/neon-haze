@@ -955,7 +955,7 @@ for line in sys.stdin:
       _sig_last=0
       [ -f "$_sig_stamp" ] && _sig_last=$(cat "$_sig_stamp" 2>/dev/null)
       if [ $((_sig_now - _sig_last)) -ge 3 ]; then
-        _img_col=$((max_lw + 4 + 3 + _rw + 3))
+        _img_col=$((max_lw + 4 + 3 + _rw + 5))
         _img_rows=$_total_lines
         printf '{"tty":"/dev/%s","image_path":"%s","rows_up":%d,"col_right":%d,"ts":%d}\n' \
           "$_sig_tty" "$_SPRITE_PNG" "$_img_rows" "$_img_col" "$_sig_now" \
