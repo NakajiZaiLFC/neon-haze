@@ -825,9 +825,15 @@ else
   L6="$l6_parts"
 
   # --- Sprite widget (iTerm2 inline image) ---
-  _SPRITE_PNG="${CACHE_DIR}/sprite-widget.png"
+  _SPRITE_PNG=""
   _has_sprite=0
-  [ "$_active_theme" = "eden" ] && [ -f "$_SPRITE_PNG" ] && _has_sprite=1
+  if [ "$_active_theme" = "eden" ] && [ -f "${CACHE_DIR}/sprite-widget.png" ]; then
+    _SPRITE_PNG="${CACHE_DIR}/sprite-widget.png"
+    _has_sprite=1
+  elif [ "$_active_theme" = "gits" ] && [ -f "$HOME/.claude/crest/laughingman.png" ]; then
+    _SPRITE_PNG="$HOME/.claude/crest/laughingman.png"
+    _has_sprite=1
+  fi
 
   # Build pomo inner string for width calculation
   _pomo_inner=""
@@ -959,8 +965,11 @@ for line in sys.stdin:
       _sig_age=0
       [ -f "$_sig_file" ] && _sig_age=$(( $(date +%s) - $(_file_mtime "$_sig_file") ))
       if [ "$_sig_key" != "$_sig_prev" ] || [ "$_sig_age" -ge 30 ] || [ ! -f "$_sig_file" ]; then
-        printf '{"tty":"/dev/%s","image_path":"%s","rows_up":%d,"col_right":%d,"ts":%d}\n' \
-          "$_sig_tty" "$_SPRITE_PNG" "$_img_rows" "$_img_col" "$(date +%s)" \
+        _inner_ratio=0.68
+        _gold_bg=true
+        [ "$_active_theme" = "gits" ] && _inner_ratio=0.62 && _gold_bg=false
+        printf '{"tty":"/dev/%s","image_path":"%s","rows_up":%d,"col_right":%d,"inner_ratio":%s,"gold_bg":%s,"ts":%d}\n' \
+          "$_sig_tty" "$_SPRITE_PNG" "$_img_rows" "$_img_col" "$_inner_ratio" "$_gold_bg" "$(date +%s)" \
           > "$_sig_file" 2>/dev/null
         echo "$_sig_key" > "$_SIG_DIR/.layout-${_sig_tty//\//_}" 2>/dev/null
       fi
