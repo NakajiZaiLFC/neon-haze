@@ -196,7 +196,7 @@ wb_line() {
   local color="$1" icons="$2" hi="$3" lo="$4" spd="$5"
   local tr="${hi}/${lo}"; local tp=$((5-${#tr}))
   local ts=""; [ "$tp" -gt 0 ] && ts=$(printf "%*s" "$tp" "")
-  local wt="${spd}km/h"; local wl=$((3+${#wt}))
+  local wt="${spd}m/s"; local wl=$((3+${#wt}))
   local wp=$((9-wl)); local ws=""; [ "$wp" -gt 0 ] && ws=$(printf "%*s" "$wp" "")
   printf "${color}║${RESET} %b │ ${T_TEMP_HI:-\033[38;5;208m}%s${RESET}/${T_TEMP_LO:-\033[38;5;123m}%s${RESET}%s │ ${T_WIND:-\033[38;5;75m}💨 %s${RESET}%s ${color}║${RESET}" \
     "$icons" "$hi" "$lo" "$ts" "$wt" "$ws"
@@ -345,7 +345,7 @@ fetch_weather() {
     {
       hi: (.daily.temperature_2m_max[0] | floor),
       lo: (.daily.temperature_2m_min[0] | floor),
-      wind: ((.hourly.wind_speed_10m[$h] // 0) | floor),
+      wind: ((.hourly.wind_speed_10m[$h] // 0) / 3.6 | floor),
       hours: [
         (.hourly.weather_code[$h:$h+5] // []) as $c |
         (.hourly.precipitation_probability[$h:$h+5] // []) as $p |
@@ -769,23 +769,38 @@ else
   GITHUB_CACHE="${CACHE_DIR}/github-pushes"
   GITHUB_TTL=300
   commits_today=0
-  _fetch_gh_pushes() {
-    local today_utc
-    today_utc=$(date -u +%Y-%m-%d)
-    gh api "/users/NakajiZaiLFC/events" --jq "[.[] | select(.type==\"PushEvent\" and (.created_at | startswith(\"$today_utc\")))] | length" > "$GITHUB_CACHE" 2>/dev/null
-  }
-  if [ -f "$GITHUB_CACHE" ]; then
-    gh_cache_age=$(( $(date +%s) - $(_file_mtime "$GITHUB_CACHE") ))
-    if [ "$gh_cache_age" -le "$GITHUB_TTL" ]; then
-      commits_today=$(cat "$GITHUB_CACHE" 2>/dev/null || echo 0)
+  _gh_day_start() {
+    local now=$(date +%s)
+    local today_6am=$(date -j -f "%Y-%m-%d %H:%M:%S" "$(date +%Y-%m-%d) 06:00:00" +%s 2>/dev/null)
+    if [ "$now" -lt "$today_6am" ]; then
+      date -j -v-1d -f "%Y-%m-%d %H:%M:%S" "$(date +%Y-%m-%d) 06:00:00" +%s 2>/dev/null
     else
-      _fetch_gh_pushes
-      commits_today=$(cat "$GITHUB_CACHE" 2>/dev/null || echo 0)
+      echo "$today_6am"
+    fi
+  }
+  _fetch_gh_pushes() {
+    local day_start=$(_gh_day_start)
+    local day_start_utc=$(date -u -j -f "%s" "$day_start" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)
+    gh api graphql -f query='query { user(login: "NakajiZaiLFC") { contributionsCollection(from: "'"$day_start_utc"'") { totalCommitContributions } } }' --jq '.data.user.contributionsCollection.totalCommitContributions' > "$GITHUB_CACHE" 2>/dev/null
+    echo "$day_start" > "${GITHUB_CACHE}.daystart"
+  }
+  _gh_cache_stale=0
+  if [ -f "$GITHUB_CACHE" ]; then
+    _cached_daystart=$(cat "${GITHUB_CACHE}.daystart" 2>/dev/null || echo 0)
+    _current_daystart=$(_gh_day_start)
+    if [ "$_cached_daystart" != "$_current_daystart" ]; then
+      _gh_cache_stale=1
+    else
+      gh_cache_age=$(( $(date +%s) - $(_file_mtime "$GITHUB_CACHE") ))
+      [ "$gh_cache_age" -gt "$GITHUB_TTL" ] && _gh_cache_stale=1
     fi
   else
-    _fetch_gh_pushes
-    commits_today=$(cat "$GITHUB_CACHE" 2>/dev/null || echo 0)
+    _gh_cache_stale=1
   fi
+  if [ "$_gh_cache_stale" -eq 1 ]; then
+    _fetch_gh_pushes
+  fi
+  commits_today=$(cat "$GITHUB_CACHE" 2>/dev/null || echo 0)
 
   L6=""
   l6_parts=""
@@ -808,6 +823,11 @@ else
     l6_parts+=$(printf "${grass_color}■ %dc${RESET}" "$commits_today")
   fi
   L6="$l6_parts"
+
+  # --- Sprite widget (iTerm2 inline image) ---
+  _SPRITE_PNG="${CACHE_DIR}/sprite-widget.png"
+  _has_sprite=0
+  [ "$_active_theme" = "eden" ] && [ -f "$_SPRITE_PNG" ] && _has_sprite=1
 
   # Build pomo inner string for width calculation
   _pomo_inner=""
@@ -847,32 +867,101 @@ for line in sys.stdin:
     [ -n "$w" ] && [ "$w" -gt "$max_lw" ] 2>/dev/null && max_lw=$w
   done
 
-  # Render box (with optional weather on right)
-  GAP="   "
-  if [ -n "$w_hi" ] && [ -n "$w_box_color" ]; then
-    printf "%s%s%s\n" "$(lbox_top "$lc" "$max_lw")" "$GAP" "$(wb_top "$w_box_color")"
-    printf "%s%s%s\n" "$(lbox_line "$lc" "$L1" "$max_lw" "$W1")" "$GAP" "$(wb_line "$w_box_color" "$w_icons" "$w_hi" "$w_lo" "$w_wind")"
-    printf "%s%s%s\n" "$(lbox_line "$lc" "$L2" "$max_lw" "$W2")" "$GAP" "$(wb_bot "$w_box_color")"
-  else
-    printf "%s\n" "$(lbox_top "$lc" "$max_lw")"
-    printf "%s\n" "$(lbox_line "$lc" "$L1" "$max_lw" "$W1")"
-    printf "%s\n" "$(lbox_line "$lc" "$L2" "$max_lw" "$W2")"
-  fi
-  # L3-L5 with optional pomo box on right
-  if [ -n "$pomo_active" ]; then
-    POMO_W=$W_BOX
-    [ -n "$WPOMO" ] && [ "$WPOMO" -gt "$POMO_W" ] 2>/dev/null && POMO_W=$WPOMO
+  # Load sprite for 3-column layout
+  # Skip half-block if async_inject is available (signal dir exists)
+  _SIG_DIR="$HOME/Library/Application Support/NeonHaze/signals"
+  _use_inject=0
+  [ -d "$_SIG_DIR" ] && ! [ -t 1 ] && _use_inject=1
 
-    printf "%s%s%s\n" "$(lbox_line "$lc" "${L3}" "$max_lw" "${W3:-0}")" "$GAP" "$(pb_top "$pomo_box_color" "$POMO_W")"
-    printf "%s%s%s\n" "$(lbox_line "$lc" "${L4}" "$max_lw" "${W4:-0}")" "$GAP" "$(pb_line "$pomo_box_color" "$pomo_time_str" "$pomo_tomatoes" "$pomo_msg" "$POMO_W" "$WPOMO")"
-    printf "%s%s%s\n" "$(lbox_line "$lc" "${L5}" "$max_lw" "${W5:-0}")" "$GAP" "$(pb_bot "$pomo_box_color" "$POMO_W")"
-    [ -n "$L5b" ] && printf "%s\n" "$(lbox_line "$lc" "$L5b" "$max_lw" "$W5b")"
-  else
-    [ -n "$L3" ] && printf "%s\n" "$(lbox_line "$lc" "$L3" "$max_lw" "$W3")"
-    [ -n "$L4" ] && printf "%s\n" "$(lbox_line "$lc" "$L4" "$max_lw" "$W4")"
-    [ -n "$L5" ] && printf "%s\n" "$(lbox_line "$lc" "$L5" "$max_lw" "$W5")"
-    [ -n "$L5b" ] && printf "%s\n" "$(lbox_line "$lc" "$L5b" "$max_lw" "$W5b")"
+  _sprite_lines=()
+  _si=0
+  _sn=""
+  if [ "$_has_sprite" -eq 1 ] && ! [ -t 1 ] && [ "$_use_inject" -eq 0 ]; then
+    _SPRITE_CACHE="${CACHE_DIR}/sprite-widget"
+    if [ -f "$_SPRITE_CACHE" ]; then
+      while IFS= read -r _sl; do
+        [ -n "$_sl" ] && _sprite_lines+=("$_sl")
+      done < "$_SPRITE_CACHE"
+    fi
   fi
-  [ -n "$L6" ] && printf "%s\n" "$(lbox_line "$lc" "$L6" "$max_lw" "$W6")"
+  _ns() { if [ "$_si" -lt "${#_sprite_lines[@]}" ]; then _sn="   ${_sprite_lines[$_si]}"; ((_si++)); else _sn=""; fi; }
+
+  # Render box (3 columns: main | weather/pomo | sprite)
+  GAP="   "
+  _rw=$((W_BOX + 2))
+  if [ -n "$pomo_active" ]; then
+    POMO_W=$W_BOX; [ -n "$WPOMO" ] && [ "$WPOMO" -gt "$POMO_W" ] 2>/dev/null && POMO_W=$WPOMO
+    _pw=$((POMO_W + 2)); [ "$_pw" -gt "$_rw" ] && _rw=$_pw
+  fi
+  _blank=$(printf "%*s" "$_rw" "")
+
+  if [ -n "$w_hi" ] && [ -n "$w_box_color" ]; then
+    _wp=$((W_BOX + 2)); _wpad=$((_rw - _wp))
+    _ns; printf "%s${GAP}%s%*s%s\n" "$(lbox_top "$lc" "$max_lw")" "$(wb_top "$w_box_color")" "$_wpad" "" "$_sn"
+    _ns; printf "%s${GAP}%s%*s%s\n" "$(lbox_line "$lc" "$L1" "$max_lw" "$W1")" "$(wb_line "$w_box_color" "$w_icons" "$w_hi" "$w_lo" "$w_wind")" "$_wpad" "" "$_sn"
+    _ns; printf "%s${GAP}%s%*s%s\n" "$(lbox_line "$lc" "$L2" "$max_lw" "$W2")" "$(wb_bot "$w_box_color")" "$_wpad" "" "$_sn"
+  else
+    _ns; printf "%s${GAP}%s%s\n" "$(lbox_top "$lc" "$max_lw")" "$_blank" "$_sn"
+    _ns; printf "%s${GAP}%s%s\n" "$(lbox_line "$lc" "$L1" "$max_lw" "$W1")" "$_blank" "$_sn"
+    _ns; printf "%s${GAP}%s%s\n" "$(lbox_line "$lc" "$L2" "$max_lw" "$W2")" "$_blank" "$_sn"
+  fi
+  if [ -n "$pomo_active" ]; then
+    _pp=$((POMO_W + 2)); _ppad=$((_rw - _pp))
+    _ns; printf "%s${GAP}%s%*s%s\n" "$(lbox_line "$lc" "${L3}" "$max_lw" "${W3:-0}")" "$(pb_top "$pomo_box_color" "$POMO_W")" "$_ppad" "" "$_sn"
+    _ns; printf "%s${GAP}%s%*s%s\n" "$(lbox_line "$lc" "${L4}" "$max_lw" "${W4:-0}")" "$(pb_line "$pomo_box_color" "$pomo_time_str" "$pomo_tomatoes" "$pomo_msg" "$POMO_W" "$WPOMO")" "$_ppad" "" "$_sn"
+    _ns; printf "%s${GAP}%s%*s%s\n" "$(lbox_line "$lc" "${L5}" "$max_lw" "${W5:-0}")" "$(pb_bot "$pomo_box_color" "$POMO_W")" "$_ppad" "" "$_sn"
+    [ -n "$L5b" ] && { _ns; printf "%s${GAP}%s%s\n" "$(lbox_line "$lc" "$L5b" "$max_lw" "$W5b")" "$_blank" "$_sn"; }
+  else
+    [ -n "$L3" ] && { _ns; printf "%s${GAP}%s%s\n" "$(lbox_line "$lc" "$L3" "$max_lw" "$W3")" "$_blank" "$_sn"; }
+    [ -n "$L4" ] && { _ns; printf "%s${GAP}%s%s\n" "$(lbox_line "$lc" "$L4" "$max_lw" "$W4")" "$_blank" "$_sn"; }
+    [ -n "$L5" ] && { _ns; printf "%s${GAP}%s%s\n" "$(lbox_line "$lc" "$L5" "$max_lw" "$W5")" "$_blank" "$_sn"; }
+    [ -n "$L5b" ] && { _ns; printf "%s${GAP}%s%s\n" "$(lbox_line "$lc" "$L5b" "$max_lw" "$W5b")" "$_blank" "$_sn"; }
+  fi
+  _theme_right=$(printf "${LABEL}theme${RESET}:${_uc}%s${RESET}" "$_active_theme")
+  _tvw=$((6 + ${#_active_theme})); _tpad=$((_rw - _tvw)); [ "$_tpad" -lt 0 ] && _tpad=0
+  _ns; printf "%s${GAP}%b%*s%s\n" "$(lbox_line "$lc" "$L6" "$max_lw" "${W6:-0}")" "$_theme_right" "$_tpad" "" "$_sn"
+  # Extend box for remaining sprite lines
+  while [ "$_si" -lt "${#_sprite_lines[@]}" ]; do
+    _sn="   ${_sprite_lines[$_si]}"
+    printf "%s${GAP}%s%s\n" "$(lbox_line "$lc" "" "$max_lw" 0)" "$_blank" "$_sn"
+    ((_si++))
+  done
+  # Bottom border after all sprite lines
   printf "%s\n" "$(lbox_bot "$lc" "$max_lw")"
+  # Count rendered lines (3 base + conditionals + theme + overflow + bot)
+  _total_lines=4  # top, L1, L2, bot
+  [ -n "$pomo_active" ] && _total_lines=$((_total_lines + 3))
+  [ -n "$pomo_active" ] && [ -n "$L5b" ] && _total_lines=$((_total_lines + 1))
+  [ -z "$pomo_active" ] && { [ -n "$L3" ] && _total_lines=$((_total_lines + 1)); [ -n "$L4" ] && _total_lines=$((_total_lines + 1)); [ -n "$L5" ] && _total_lines=$((_total_lines + 1)); [ -n "$L5b" ] && _total_lines=$((_total_lines + 1)); }
+  _total_lines=$((_total_lines + 1))  # theme line
+  _total_lines=$((_total_lines + ${#_sprite_lines[@]}))  # overflow sprite lines
+
+  # Direct terminal: iTerm2 inline image (separate terminal only)
+  if [ "$_has_sprite" -eq 1 ] && [ -t 1 ]; then
+    _sprite_col=$((max_lw + 4 + 3 + _rw + 3))
+    printf "\033[9A\033[%dC" "$_sprite_col"
+    printf '\033]1337;File=inline=1;width=auto;height=8;preserveAspectRatio=1:'
+    base64 < "$_SPRITE_PNG"
+    printf '\a\n'
+  fi
+
+  # TUI mode: signal async_inject daemon to inject inline image
+  # Rate limited: write signal at most once per 10 seconds per TTY
+  if [ "$_has_sprite" -eq 1 ] && [ "$_use_inject" -eq 1 ]; then
+    _sig_tty=$(ps -o tty= -p $PPID 2>/dev/null | tr -d ' ')
+    if [ -n "$_sig_tty" ] && [ "$_sig_tty" != "??" ]; then
+      _sig_stamp="$_SIG_DIR/.stamp-${_sig_tty//\//_}"
+      _sig_now=$(date +%s)
+      _sig_last=0
+      [ -f "$_sig_stamp" ] && _sig_last=$(cat "$_sig_stamp" 2>/dev/null)
+      if [ $((_sig_now - _sig_last)) -ge 3 ]; then
+        _img_col=$((max_lw + 4 + 3 + _rw + 3))
+        _img_rows=$_total_lines
+        printf '{"tty":"/dev/%s","image_path":"%s","rows_up":%d,"col_right":%d,"ts":%d}\n' \
+          "$_sig_tty" "$_SPRITE_PNG" "$_img_rows" "$_img_col" "$_sig_now" \
+          > "$_SIG_DIR/req-${_sig_tty//\//_}.json" 2>/dev/null
+        echo "$_sig_now" > "$_sig_stamp" 2>/dev/null
+      fi
+    fi
+  fi
 fi
